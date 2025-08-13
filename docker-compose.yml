@@ -1,0 +1,46 @@
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    ports: ["1883:1883"]
+    volumes:
+      - ./infra/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    env_file: .env
+    ports: ["8080:8080"]
+    volumes:
+      - gateway_ledger:/app/data
+
+  device-hub:
+    build: ./services/device-hub
+    env_file: .env
+    depends_on: [mosquitto, postgres]
+
+  ml-service:
+    build: ./services/ml-service
+    env_file: .env
+    ports: ["8090:8090"]
+
+  simulator:
+    build: ./services/simulator
+    env_file: .env
+    depends_on: [mosquitto]
+
+volumes:
+  pgdata:
+  gateway_ledger:
